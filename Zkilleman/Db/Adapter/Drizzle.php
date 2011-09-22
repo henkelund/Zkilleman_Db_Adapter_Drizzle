@@ -30,6 +30,13 @@ require_once 'Zend/Db/Adapter/Abstract.php';
  */
 class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
 {
+    
+    /**
+     * Creates a connection to the database.
+     *
+     * @return void
+     * @throws Zkilleman_Db_Adapter_Drizzle_Exception
+     */
     protected function _connect()
     {
         if ($this->_connection) {
@@ -103,7 +110,7 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
      *
      * @param int $mode
      * @return void
-     * @throws Zend_Db_Adapter_Drizzle_Exception
+     * @throws Zkilleman_Db_Adapter_Drizzle_Exception
      */
     public function setFetchMode($mode)
     {
@@ -119,13 +126,13 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
             case Zend_Db::FETCH_BOUND: 
                 
                 require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
-                throw new Zkilleman_Db_Adapter_Mysqli_Exception(
+                throw new Zkilleman_Db_Adapter_Drizzle_Exception(
                         'FETCH_BOUND is not supported yet');
                 break;
             default:
                 
                 require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
-                throw new Zkilleman_Db_Adapter_Mysqli_Exception(
+                throw new Zkilleman_Db_Adapter_Drizzle_Exception(
                         sprintf('Invalid fetch mode "%s" specified', $mode));
         }
     }
