@@ -5,6 +5,8 @@ Zkilleman/
     |   |   `-- Exception.php
     |   `-- Drizzle.php
     `-- Statement
+        |-- Drizzle
+        |   `-- Exception.php
         `-- Drizzle.php
 
-4 directories, 3 files
+5 directories, 4 files

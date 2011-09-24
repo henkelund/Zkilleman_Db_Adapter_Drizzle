@@ -76,7 +76,12 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
      * 
      * @var string
      */
-    protected static $_lastInsertId = '';
+    protected static $_lastInsertId = 0;
+    
+    /**
+     * @var Zkilleman_Db_Statement_Drizzle
+     */
+    protected $_stmt = null;
     
     /**
      * Default class name for a DB statement.
@@ -119,8 +124,11 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
     public function query($sql, $bind = array())
     {
         $stmt = parent::query($sql, $bind);
-        //TODO: save DrizzleResult::insertId(), if any, from custom
-        // statement to self::$_lastInsertId
+        if ($stmt instanceof Zkilleman_Db_Statement_Drizzle) {
+            if (($insertId = $stmt->insertId()) > 0) {
+                self::$_lastInsertId = $insertId;
+            }
+        }
         return $stmt;
     }
     
@@ -318,12 +326,27 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
         $this->_connection = null;
     }
     
+    /**
+     * Prepare a statement and return a PDOStatement-like object.
+     *
+     * @param  string  $sql  SQL query
+     * @return Zkilleman_Db_Statement_Drizzle
+     */
     public function prepare($sql)
     {
-        //TODO: Implement
-        require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
-        throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                __FUNCTION__.'() is not implemented');
+        $this->_connect();
+        $stmtClass = $this->_defaultStmtClass;
+        if (!class_exists($stmtClass)) {
+            require_once 'Zend/Loader.php';
+            Zend_Loader::loadClass($stmtClass);
+        }
+        $stmt = new $stmtClass($this, $sql);
+        if ($stmt === false) {
+            return false;
+        }
+        $stmt->setFetchMode($this->_fetchMode);
+        $this->_stmt = $stmt;
+        return $stmt;
     }
     
     /**
@@ -340,7 +363,7 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
      *
      * @param string $tableName   OPTIONAL Name of table.
      * @param string $primaryKey  OPTIONAL Name of primary key column.
-     * @return string
+     * @return int
      */
     public function lastInsertId($tableName = null, $primaryKey = null)
     {
@@ -445,13 +468,7 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
      */
     public function supportsParameters($type)
     {
-        switch ($type) {
-            case 'positional':
-                return true;
-            case 'named':
-            default:
-                return false;
-        }
+        return false;
     }
 
     /**
