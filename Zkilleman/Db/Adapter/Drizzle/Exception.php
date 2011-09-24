@@ -10,7 +10,7 @@
  * @category   Zkilleman
  * @package    Zkilleman_Db
  * @subpackage Adapter
- * @copyright  Copyright (c) 2011 Henrik Hedelund <henke.hedelund@improove.se>
+ * @copyright  Copyright (c) 2011 Henrik Hedelund <henke.hedelund@gmail.com>
  * @license    New BSD License
  */
 
