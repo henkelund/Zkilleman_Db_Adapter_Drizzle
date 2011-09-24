@@ -89,11 +89,6 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
     protected static $_lastInsertId = 0;
     
     /**
-     * @var Zkilleman_Db_Statement_Drizzle
-     */
-    protected $_stmt = null;
-    
-    /**
      * Default class name for a DB statement.
      *
      * @var string
@@ -355,7 +350,6 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
             return false;
         }
         $stmt->setFetchMode($this->_fetchMode);
-        $this->_stmt = $stmt;
         return $stmt;
     }
     
