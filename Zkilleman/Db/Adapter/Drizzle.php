@@ -21,6 +21,16 @@
 require_once 'Zend/Db/Adapter/Abstract.php';
 
 /**
+ * @see Zend_Db_Profiler
+ */
+require_once 'Zend/Db/Profiler.php';
+
+/**
+ * @see Zend_Db_Select
+ */
+require_once 'Zend/Db/Select.php';
+
+/**
  * @see Zkilleman_Db_Statement_Drizzle
  */
 require_once 'Zkilleman/Db/Statement/Drizzle.php';
@@ -107,7 +117,7 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
                         'The Drizzle extension is required for this adapter ' .
                         'but the extension is not loaded');
             } else {
-                self::$_drizzle = new drizzle();
+                self::$_drizzle = new Drizzle();
             }
         }
         parent::__construct($config); 
@@ -452,12 +462,38 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
         }
     }
 
+    /**
+     * Adds an adapter-specific LIMIT clause to the SELECT statement.
+     *
+     * @param string $sql
+     * @param int $count
+     * @param int $offset OPTIONAL
+     * @return string
+     */
     public function limit($sql, $count, $offset = 0)
     {
-        //TODO: Implement
-        require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
-        throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                __FUNCTION__.'() is not implemented');
+        $count = (int) $count;
+        if ($count <= 0) {
+            
+            require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
+            throw new Zkilleman_Db_Adapter_Drizzle_Exception(
+                    sprintf('LIMIT argument count = %s is not valid'), $count);
+        }
+
+        $offset = (int) $offset;
+        if ($offset < 0) {
+            
+            require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
+            throw new Zkilleman_Db_Adapter_Drizzle_Exception(
+                    sprintf('LIMIT argument offset = %s is not valid', $count));
+        }
+
+        $sql .= ' LIMIT ' . $count;
+        if ($offset > 0) {
+            $sql .= ' OFFSET ' . $offset;
+        }
+
+        return $sql;
     }
 
     /**
