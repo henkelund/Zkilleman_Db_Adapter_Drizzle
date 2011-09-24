@@ -10,3 +10,34 @@ Zkilleman/
         `-- Drizzle.php
 
 5 directories, 4 files
+
+Example usage:
+
+<?php
+
+// Connect to Drizzle
+require_once 'Zkilleman/Db/Adapter/Drizzle.php';
+$adapter = new Zkilleman_Db_Adapter_Drizzle(array(
+    'dbname'    => 'a_database',
+    'username'  => 'a_user',
+    'password'  => 'a_secret'
+));
+
+// Create a table
+$adapter->query(
+    'CREATE TABLE IF NOT EXISTS `a_table` (
+        `an_id`    INT(11) NOT NULL AUTO_INCREMENT,
+        `a_column` VARCHAR(255) NOT NULL DEFAULT "",
+        PRIMARY KEY (`an_id`)
+    )'
+);
+
+// Insert some data
+$adapter->query('INSERT INTO `a_table` (`a_column`) VALUES ("a value")');
+echo sprintf('Row with id %s inserted<br />', $adapter->lastInsertId());
+
+// Read it
+$stmt = $adapter->select()->from('a_table')->order('an_id DESC')->query();
+while ($row = $stmt->fetch(Zend_Db::FETCH_OBJ)) {
+    echo sprintf('%s: %s.<br />', $row->an_id, $row->a_column);
+}
