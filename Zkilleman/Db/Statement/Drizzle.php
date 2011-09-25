@@ -44,6 +44,12 @@ class Zkilleman_Db_Statement_Drizzle extends Zend_Db_Statement
     protected $_columns = null;
     
     /**
+     * 
+     * @var array
+     */
+    protected $_columnKeys = null;
+    
+    /**
      * @param  string $sql
      * @return void
      * @throws Zkilleman_Db_Statement_Drizzle_Exception
@@ -85,8 +91,9 @@ class Zkilleman_Db_Statement_Drizzle extends Zend_Db_Statement
         
         $this->_columns = array();
         while (($column = $this->_stmt->columnNext()) != null) {
-            $this->_columns[] = $column->name();
+            $this->_columns[$column->name()] = $column;
         }
+        $this->_columnKeys = array_keys($this->_columns);
         
         return $this->_stmt->errorCode() == 0;
     }
@@ -110,6 +117,20 @@ class Zkilleman_Db_Statement_Drizzle extends Zend_Db_Statement
     {
         $this->_stmt->rowSeek(0);
         return true;
+    }
+    
+    /**
+     * Returns the columns of the result set.
+     * Returns null if the statement hasn't been executed.
+     *
+     * @return int The number of columns.
+     */
+    public function columns()
+    {
+        if (is_array($this->_columns)) {
+            return $this->_columns;
+        }
+        return null;
     }
     
     /**
@@ -189,17 +210,17 @@ class Zkilleman_Db_Statement_Drizzle extends Zend_Db_Statement
                 // default returned by rowNext()
                 break;
             case Zend_Db::FETCH_ASSOC:
-                $row = array_combine($this->_columns, $row);
+                $row = array_combine($this->_columnKeys, $row);
                 break;
             case Zend_Db::FETCH_BOTH:
-                $assoc = array_combine($this->_columns, $row);
+                $assoc = array_combine($this->_columnKeys, $row);
                 $row = array_merge($row, $assoc);
                 break;
             case Zend_Db::FETCH_OBJ:
-                $row = (object) array_combine($this->_columns, $row);
+                $row = (object) array_combine($this->_columnKeys, $row);
                 break;
             case Zend_Db::FETCH_BOUND:
-                $assoc = array_combine($this->_columns, $row);
+                $assoc = array_combine($this->_columnKeys, $row);
                 $row = array_merge($row, $assoc);
                 return $this->_fetchBound($row);
                 break;

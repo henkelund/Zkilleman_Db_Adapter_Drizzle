@@ -45,6 +45,11 @@ require_once 'Zkilleman/Db/Statement/Drizzle.php';
  */
 class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
 {
+    
+    /**
+     * Drizzle only supports the UTF8 character set so a char is always 4 bytes
+     */
+    const DRIZZLE_CHAR_SIZE = 4;
 
     /**
      * Keys are UPPERCASE SQL datatypes or the constants
@@ -74,6 +79,77 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
         'DOUBLE PRECISION'   => Zend_Db::FLOAT_TYPE,
         'FIXED'              => Zend_Db::FLOAT_TYPE,
         'FLOAT'              => Zend_Db::FLOAT_TYPE
+    );
+    
+    /**
+     * Keys are Drizzle datatype constants and values are SQL datatype names
+     * 
+     * @var array Drizzle datatype constant - name mapping
+     */
+    protected $_drizzleDataTypes = array(
+        DRIZZLE_COLUMN_TYPE_BIT         => 'BIT',
+        DRIZZLE_COLUMN_TYPE_BLOB        => 'BLOB',
+        DRIZZLE_COLUMN_TYPE_DATE        => 'DATE',
+        DRIZZLE_COLUMN_TYPE_DATETIME    => 'DATETIME',
+        DRIZZLE_COLUMN_TYPE_DECIMAL     => 'DECIMAL',
+        DRIZZLE_COLUMN_TYPE_DOUBLE      => 'DOUBLE',
+        DRIZZLE_COLUMN_TYPE_ENUM        => 'ENUM',
+        DRIZZLE_COLUMN_TYPE_FLOAT       => 'FLOAT',
+        DRIZZLE_COLUMN_TYPE_GEOMETRY    => 'GEOMETRY',
+        DRIZZLE_COLUMN_TYPE_INT24       => 'INT24',
+        DRIZZLE_COLUMN_TYPE_LONG        => 'LONG',
+        DRIZZLE_COLUMN_TYPE_LONG_BLOB   => 'LONG_BLOB',
+        DRIZZLE_COLUMN_TYPE_LONGLONG    => 'LONGLONG',
+        DRIZZLE_COLUMN_TYPE_MEDIUM_BLOB => 'MEDIUM_BLOB',
+        DRIZZLE_COLUMN_TYPE_NEWDATE     => 'NEWDATE',
+        DRIZZLE_COLUMN_TYPE_NEWDECIMAL  => 'NEWDECIMAL',
+        DRIZZLE_COLUMN_TYPE_NULL        => 'NULL',
+        DRIZZLE_COLUMN_TYPE_SET         => 'SET',
+        DRIZZLE_COLUMN_TYPE_SHORT       => 'SHORT',
+        DRIZZLE_COLUMN_TYPE_STRING      => 'STRING',
+        DRIZZLE_COLUMN_TYPE_TIME        => 'TIME',
+        DRIZZLE_COLUMN_TYPE_TIMESTAMP   => 'TIMESTAMP',
+        DRIZZLE_COLUMN_TYPE_TINY        => 'TINY',
+        DRIZZLE_COLUMN_TYPE_TINY_BLOB   => 'TINY_BLOB',
+        DRIZZLE_COLUMN_TYPE_VARCHAR     => 'VARCHAR',
+        DRIZZLE_COLUMN_TYPE_VAR_STRING  => 'VAR_STRING',
+        DRIZZLE_COLUMN_TYPE_VIRTUAL     => 'VIRTUAL',
+        DRIZZLE_COLUMN_TYPE_YEAR        => 'YEAR'
+    );
+    
+    /**
+     * A subset of $_drizzleDataTypes containing only text types
+     * 
+     * @var array Drizzle datatype constant - name mapping
+     */
+    protected $_drizzleTextDataTypes = array(
+        DRIZZLE_COLUMN_TYPE_BLOB,
+        DRIZZLE_COLUMN_TYPE_LONG_BLOB,
+        DRIZZLE_COLUMN_TYPE_MEDIUM_BLOB,
+        DRIZZLE_COLUMN_TYPE_TINY_BLOB,
+        DRIZZLE_COLUMN_TYPE_VARCHAR,
+        DRIZZLE_COLUMN_TYPE_VAR_STRING
+    );
+    
+    /**
+     * Currently not used. Defined here for reference
+     * 
+     * @var type array
+     */
+    protected $_drizzleDrizzleDataTypes = array(
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_BLOB,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_DATE,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_DATETIME,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_DOUBLE,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_ENUM,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_LONG,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_LONGLONG,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_MAX,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_NEWDECIMAL,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_NULL,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_TIMESTAMP,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_TINY,
+        DRIZZLE_COLUMN_TYPE_DRIZZLE_VARCHAR
     );
     
     /**
@@ -116,6 +192,21 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
             }
         }
         parent::__construct($config); 
+    }
+    
+    /**
+     * Quote a raw string.
+     *
+     * @param mixed $value Raw string
+     *
+     * @return string           Quoted string
+     */
+    protected function _quote($value)
+    {
+        if (is_int($value) || is_float($value)) {
+            return $value;
+        }
+        return "'" . self::$_drizzle->escapeString($value) . "'";
     }
     
     /**
@@ -240,6 +331,64 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
     {
         $schemaName = $schemaName ? 
                 $schemaName : $this->getConnection()->db();
+        
+        $stmt = $this->query(
+            $this->limit(
+                'SELECT * FROM ' . $this->quoteIdentifier("$schemaName.$tableName"), 
+                0 // no rows, just columns
+            )
+        );
+        
+        if ($stmt instanceof Zkilleman_Db_Statement_Drizzle) {
+        
+            $result = array();
+            $i = 0; // column index
+            $p = 0; // primary index
+            
+            foreach ($stmt->columns() as $name => $column) {
+                
+                $flags = $column->flags();
+                $primary = (bool) ($flags & DRIZZLE_COLUMN_FLAGS_PRI_KEY);
+                $size = $column->size();
+                
+                $length = null;
+                if ($size > 0 && 
+                        in_array($column->type(), $this->_drizzleTextDataTypes)) {
+                    // if text type and size > 0, divide length by char size
+                    $length = $size/self::DRIZZLE_CHAR_SIZE;
+                }
+                
+                $precision = $size;
+                $scale = (int) $column->decimals();
+                if ($scale <= 0) {
+                    // if no decimals, interpret scale & precision as not applicable
+                    $precision = null;
+                    $scale = null;
+                }
+                
+                $result[$name] = array(
+                    'SCHEMA_NAME'      => $column->db(),
+                    'TABLE_NAME'       => $column->table(),
+                    'COLUMN_NAME'      => $name,
+                    'COLUMN_POSITION'  => ++$i,
+                    'DATA_TYPE'        => $this->_drizzleDataTypes[$column->type()],
+                    'DEFAULT'          => $column->defaultValue(),
+                    'NULLABLE'         => 
+                        !((bool) ($flags & DRIZZLE_COLUMN_FLAGS_NOT_NULL)),
+                    'LENGTH'           => $length,
+                    'SCALE'            => $scale,
+                    'PRECISION'        => $precision,
+                    'UNSIGNED'         => 
+                        (bool) ($flags & DRIZZLE_COLUMN_FLAGS_UNSIGNED),
+                    'PRIMARY'          => $primary,
+                    'PRIMARY_POSITION' => $primary ? ++$p : null,
+                    'IDENTITY'         => 
+                        (bool) ($flags & DRIZZLE_COLUMN_FLAGS_AUTO_INCREMENT)
+                );
+            }
+        
+            return $result;
+        } // else fall back on INFORMATION_SCHEMA
         
         // columns table
         $ct = $this->quoteIdentifier('INFORMATION_SCHEMA.COLUMNS');
@@ -467,11 +616,11 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
     public function limit($sql, $count, $offset = 0)
     {
         $count = (int) $count;
-        if ($count <= 0) {
+        if ($count < 0) {
             
             require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
             throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                    sprintf('LIMIT argument count = %s is not valid'), $count);
+                    sprintf('LIMIT argument count = %s is not valid', $count));
         }
 
         $offset = (int) $offset;
