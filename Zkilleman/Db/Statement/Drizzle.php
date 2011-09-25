@@ -186,7 +186,7 @@ class Zkilleman_Db_Statement_Drizzle extends Zend_Db_Statement
      * @param int $cursor OPTIONAL Absolute, relative, or other.
      * @param int $offset OPTIONAL Number for absolute or relative cursors.
      * @return mixed Array, object, or scalar depending on fetch mode.
-     * @throws Zend_Db_Statement_Mysqli_Exception
+     * @throws Zkilleman_Db_Statement_Drizzle_Exception
      */
     public function fetch($style = null, $cursor = null, $offset = null)
     {
