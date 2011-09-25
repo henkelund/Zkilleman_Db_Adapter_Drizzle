@@ -1,3 +1,31 @@
+###############################
+#     GENERAL INFORMATION     #
+###############################
+
+Zkilleman_Db_Adapter_Drizzle is a project that aims to provide a Zend Framework 
+compatible database adapter for the Drizzle RDBMS.
+Transactions and query bindings are currently not supported.
+
+############################
+#     RELATED PROJECTS     #
+############################
+
+Drizzle, the community-driven open source RDBMS: http://www.drizzle.org/
+Drizzle PHP Extension: https://launchpad.net/drizzle-php-ext
+Zend Framework: http://framework.zend.com/
+
+######################
+#     DISCLAIMER     #
+######################
+
+This piece of software is in a very early stage of development and is probably 
+not suitable for use in production environments.
+See LICENSE.txt for information about warranty.
+
+##########################
+#     DIRECTORY TREE     #
+##########################
+
 Zkilleman/
 `-- Db
     |-- Adapter
@@ -11,7 +39,9 @@ Zkilleman/
 
 5 directories, 4 files
 
-Example usage:
+#########################
+#     EXAMPLE USAGE     #
+#########################
 
 <?php
 
