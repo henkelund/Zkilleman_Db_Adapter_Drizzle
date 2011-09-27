@@ -523,43 +523,55 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
         return self::$_lastInsertId;
     }
     
+    /**
+     * Begin a transaction.
+     *
+     * @return void
+     * @throws Zkilleman_Db_Adapter_Drizzle_Exception
+     */
     protected function _beginTransaction()
     {
         if (!$this->_supportsTransactions()) {
             require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
             throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                    'Drizzle currently doesn\'t support transactions');
-        }
-        //TODO: Implement
-        require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
-        throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                __FUNCTION__.'() is not implemented');
+                    'The current Drizzle setup doesn\'t support transactions');
+        } elseif (!$this->_inTransaction()) {
+            $this->_connection->query('START TRANSACTION');
+        } // else { already in transaction }
     }
 
+    /**
+     * Commit a transaction.
+     *
+     * @return void
+     * @throws Zkilleman_Db_Adapter_Drizzle_Exception
+     */
     protected function _commit()
     {
         if (!$this->_supportsTransactions()) {
             require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
             throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                    'Drizzle currently doesn\'t support transactions');
-        }
-        //TODO: Implement
-        require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
-        throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                __FUNCTION__.'() is not implemented');
+                    'The current Drizzle setup doesn\'t support transactions');
+        } elseif ($this->_inTransaction()) {
+            $this->_connection->query('COMMIT');
+        } // else { already in autocommit mode }
     }
 
+    /**
+     * Roll-back a transaction.
+     *
+     * @return void
+     * @throws Zkilleman_Db_Adapter_Drizzle_Exception
+     */
     protected function _rollBack()
     {
         if (!$this->_supportsTransactions()) {
             require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
             throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                    'Drizzle currently doesn\'t support transactions');
-        }
-        //TODO: Implement
-        require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
-        throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                __FUNCTION__.'() is not implemented');
+                    'The current Drizzle setup doesn\'t support transactions');
+        } elseif ($this->_inTransaction()) {
+            $this->_connection->query('ROLLBACK');
+        } // else { can't roll back if not in a transaction }
     }
     
     /**
@@ -571,6 +583,17 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
     {
         return (bool) ($this->getConnection()->capabilities() & 
                 DRIZZLE_CAPABILITIES_TRANSACTIONS);
+    }
+    
+    /**
+     * Check if a transaction is started
+     * 
+     * @return bool
+     */
+    protected function _inTransaction()
+    {
+        return (bool) ($this->getConnection()->status() 
+                & DRIZZLE_CON_STATUS_IN_TRANS);
     }
 
     /**
