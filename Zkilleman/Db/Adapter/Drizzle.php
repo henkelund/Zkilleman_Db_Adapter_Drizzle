@@ -132,27 +132,6 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
     );
     
     /**
-     * Currently not used. Defined here for reference
-     * 
-     * @var type array
-     */
-    protected $_drizzleDrizzleDataTypes = array(
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_BLOB,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_DATE,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_DATETIME,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_DOUBLE,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_ENUM,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_LONG,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_LONGLONG,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_MAX,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_NEWDECIMAL,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_NULL,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_TIMESTAMP,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_TINY,
-        DRIZZLE_COLUMN_TYPE_DRIZZLE_VARCHAR
-    );
-    
-    /**
      *
      * @var drizzle 
      */
@@ -329,128 +308,67 @@ class Zkilleman_Db_Adapter_Drizzle extends Zend_Db_Adapter_Abstract
      */
     public function describeTable($tableName, $schemaName = null)
     {
-        $schemaName = $schemaName ? 
-                $schemaName : $this->getConnection()->db();
+        $result = array();
         
-        $stmt = $this->query(
+        $drizzleCon = $this->getConnection();
+        
+        $schemaName = $schemaName ? 
+                $schemaName : $drizzleCon->db();
+        
+        $drizzleResult = @$drizzleCon->query(
             $this->limit(
                 'SELECT * FROM ' . $this->quoteIdentifier("$schemaName.$tableName"), 
                 0 // no rows, just columns
             )
         );
         
-        if ($stmt instanceof Zkilleman_Db_Statement_Drizzle) {
+        if (!$drizzleResult->buffer()) {
+            return $result; // silently fail
+        }
         
-            $result = array();
-            $i = 0; // column index
-            $p = 0; // primary index
+        $i = 0; // column index
+        $p = 0; // primary index
+        
+        while (($column = $drizzleResult->columnNext()) != null) {
             
-            foreach ($stmt->columns() as $name => $column) {
-                
-                $flags = $column->flags();
-                $primary = (bool) ($flags & DRIZZLE_COLUMN_FLAGS_PRI_KEY);
-                $size = $column->size();
-                
-                $length = null;
-                if ($size > 0 && 
-                        in_array($column->type(), $this->_drizzleTextDataTypes)) {
-                    // if text type and size > 0, divide length by char size
-                    $length = $size/self::DRIZZLE_CHAR_SIZE;
-                }
-                
-                $precision = $size;
-                $scale = (int) $column->decimals();
-                if ($scale <= 0) {
-                    // if no decimals, interpret scale & precision as not applicable
-                    $precision = null;
-                    $scale = null;
-                }
-                
-                $result[$name] = array(
-                    'SCHEMA_NAME'      => $column->db(),
-                    'TABLE_NAME'       => $column->table(),
-                    'COLUMN_NAME'      => $name,
-                    'COLUMN_POSITION'  => ++$i,
-                    'DATA_TYPE'        => $this->_drizzleDataTypes[$column->type()],
-                    'DEFAULT'          => $column->defaultValue(),
-                    'NULLABLE'         => 
-                        !((bool) ($flags & DRIZZLE_COLUMN_FLAGS_NOT_NULL)),
-                    'LENGTH'           => $length,
-                    'SCALE'            => $scale,
-                    'PRECISION'        => $precision,
-                    'UNSIGNED'         => 
-                        (bool) ($flags & DRIZZLE_COLUMN_FLAGS_UNSIGNED),
-                    'PRIMARY'          => $primary,
-                    'PRIMARY_POSITION' => $primary ? ++$p : null,
-                    'IDENTITY'         => 
-                        (bool) ($flags & DRIZZLE_COLUMN_FLAGS_AUTO_INCREMENT)
-                );
+            $flags = $column->flags();
+            $primary = (bool) ($flags & DRIZZLE_COLUMN_FLAGS_PRI_KEY);
+            $size = $column->size();
+
+            $length = null;
+            if ($size > 0 && 
+                    in_array($column->type(), $this->_drizzleTextDataTypes)) {
+                // if text type and size > 0, divide length by char size
+                $length = $size/self::DRIZZLE_CHAR_SIZE;
             }
-        
-            return $result;
-        } // else fall back on INFORMATION_SCHEMA
-        
-        // columns table
-        $ct = $this->quoteIdentifier('INFORMATION_SCHEMA.COLUMNS');
-        $cta = $this->quoteIdentifier('isc'); // alias
-        // keys table
-        $kt = $this->quoteIdentifier('INFORMATION_SCHEMA.KEY_COLUMN_USAGE');
-        $kta = $this->quoteIdentifier('iskcu'); // alias
-        // columns table schema name column
-        $ctsc = $this->quoteIdentifier('TABLE_SCHEMA');
-        // keys table schema name column
-        $ktsc = $ctsc;
-        // columns table table name column
-        $cttc = $this->quoteIdentifier('TABLE_NAME');
-        // keys table table name column
-        $kttc = $cttc;
-        // columns table column name column
-        $ctcc = $this->quoteIdentifier('COLUMN_NAME');
-        // keys table column name column
-        $ktcc = $ctcc;
-        // keys table constraint name column
-        $ktconc = $this->quoteIdentifier('CONSTRAINT_NAME');
-        $ktconca = $this->quoteIdentifier('PRIMARY'); // alias
-        // keys table ordinal position column
-        $ktopc = $this->quoteIdentifier('ORDINAL_POSITION');
-        $ktopca = $this->quoteIdentifier('PRIMARY_POSITION'); // alias
-        
-        $sql = 
-            "SELECT $cta.*, $kta.$ktconc AS $ktconca, $kta.$ktopc AS $ktopca 
-                FROM $ct AS $cta
-                    LEFT JOIN $kt AS $kta
-                        ON ($cta.$ctcc=$kta.$ktcc 
-                            AND $cta.$ctsc=$kta.$ktsc 
-                            AND $cta.$cttc=$kta.$kttc)
-                WHERE ($cta.$ctsc='$schemaName' AND $cta.$cttc='$tableName')";
-        
-        $result = array();
-        
-        $queryResult = @$this->getConnection()->query($sql);
-        if ($queryResult && $queryResult->buffer()) {
-            while ($row = $queryResult->rowNext()) {
-                $result[$row[3]] = array(
-                    'SCHEMA_NAME'      => $row[1],
-                    'TABLE_NAME'       => $row[2],
-                    'COLUMN_NAME'      => $row[3],
-                    'COLUMN_POSITION'  => $row[4],
-                    'DATA_TYPE'        => $row[7],
-                    'DEFAULT'          => $row[5],
-                    'NULLABLE'         => (bool) intval($row[6]),
-                    'LENGTH'           => $row[8],
-                    'SCALE'            => $row[12],
-                    'PRECISION'        => $row[10],
-                    'UNSIGNED'         => null, //TODO
-                    'PRIMARY'          => $row[23] == 'PRIMARY',
-                    'PRIMARY_POSITION' => $row[24],
-                    'IDENTITY'         => null //TODO
-                );
+
+            $precision = $size;
+            $scale = (int) $column->decimals();
+            if ($scale <= 0) {
+                // if no decimals, interpret scale & precision as not applicable
+                $precision = null;
+                $scale = null;
             }
-        } else {
-            
-            require_once 'Zkilleman/Db/Adapter/Drizzle/Exception.php';
-            throw new Zkilleman_Db_Adapter_Drizzle_Exception(
-                    $this->_connection->error());
+
+            $result[$column->name()] = array(
+                'SCHEMA_NAME'      => $column->db(),
+                'TABLE_NAME'       => $column->table(),
+                'COLUMN_NAME'      => $column->name(),
+                'COLUMN_POSITION'  => ++$i,
+                'DATA_TYPE'        => $this->_drizzleDataTypes[$column->type()],
+                'DEFAULT'          => $column->defaultValue(),
+                'NULLABLE'         => 
+                    (bool) (~$flags & DRIZZLE_COLUMN_FLAGS_NOT_NULL),
+                'LENGTH'           => $length,
+                'SCALE'            => $scale,
+                'PRECISION'        => $precision,
+                'UNSIGNED'         => 
+                    (bool) ($flags & DRIZZLE_COLUMN_FLAGS_UNSIGNED),
+                'PRIMARY'          => $primary,
+                'PRIMARY_POSITION' => $primary ? ++$p : null,
+                'IDENTITY'         => 
+                    (bool) ($flags & DRIZZLE_COLUMN_FLAGS_AUTO_INCREMENT)
+            );
         }
         
         return $result;
