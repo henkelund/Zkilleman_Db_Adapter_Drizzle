@@ -4,7 +4,15 @@
 
 Zkilleman_Db_Adapter_Drizzle is a project that aims to provide a Zend Framework 
 compatible database adapter for the Drizzle RDBMS.
-Transactions and query bindings are currently not supported.
+
+#######################
+#     KNOWN ISSUES    #
+#######################
+
+I've experienced segfaults when using the Drizzle PHP Extension in combination 
+with APC. The project (Drizzle PHP Extension) is currently not being actively
+maintained and you might be better off using the mysqli or pdo_mysql extension
+for now.
 
 ##########################################
 #     RELATED PROJECTS / DEPENDENCIES    #
